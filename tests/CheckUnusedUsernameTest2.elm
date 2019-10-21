@@ -1,9 +1,8 @@
-module CheckUnusedUsernameTest exposing (..)
+module CheckUnusedUsernameTest2 exposing (..)
 
 import Browser
 import Dict exposing (Dict)
 import Expect
-import Test.Html.Selector exposing (class, text)
 import Html exposing (Html)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
@@ -246,9 +245,7 @@ update msg model =
 
 view model =
     { title = "Lighting control"
-    , body = [
-    Html.text "Available!"
-     ]
+    , body = [ viewBody model ]
     }
 
 
@@ -356,20 +353,19 @@ start =
 
 all : Test
 all =
-    describe "check username availability"
-        [ test "check username that is available" <|
+    describe "HomeAutomationExample"
+        [ test "controlling a light" <|
             \() ->
                 start
-                |> ProgramTest.expectViewHas [text "Available!"]
---                    |> ProgramTest.simulateHttpOk
---                        "GET"
---                        "http://localhost:8003/lighting_service/v1/devices"
---                        """[{"id":"K001", "name":"Kitchen", "dimmable":false, "value":0}]"""
---                    |> ProgramTest.clickButton "Turn on"
---                    |> ProgramTest.expectHttpRequest
---                        "POST"
---                        "http://localhost:8003/lighting_service/v1/devices/K001"
---                        (.body >> Expect.equal """{"value":1}""")
+                    |> ProgramTest.simulateHttpOk
+                        "GET"
+                        "http://localhost:8003/lighting_service/v1/devices"
+                        """[{"id":"K001", "name":"Kitchen", "dimmable":false, "value":0}]"""
+                    |> ProgramTest.clickButton "Turn on"
+                    |> ProgramTest.expectHttpRequest
+                        "POST"
+                        "http://localhost:8003/lighting_service/v1/devices/K001"
+                        (.body >> Expect.equal """{"value":1}""")
         ]
 
 
