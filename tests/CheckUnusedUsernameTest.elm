@@ -3,7 +3,6 @@ module CheckUnusedUsernameTest exposing (..)
 import Browser
 import Dict exposing (Dict)
 import Expect
-import Test.Html.Selector exposing (class, text)
 import Html exposing (Html)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
@@ -15,8 +14,8 @@ import Random
 import SimulatedEffect.Cmd
 import SimulatedEffect.Http
 import Test exposing (..)
+import Test.Html.Selector exposing (class, text)
 import Test.Runner.Html
-
 
 
 apiBase =
@@ -246,21 +245,23 @@ update msg model =
 
 view model =
     { title = "Lighting control"
-    , body = [
-    usernameInput,
-    Html.text "Available!"
-     ]
+    , body =
+        [ usernameInput
+        , Html.text "Available!"
+        ]
     }
 
+
 usernameInput =
-    Html.div [] [
-    Html.label [
-    Html.Attributes.for "username"
-    ] [
-   Html.text "Username"
-    ]
-    , Html.textarea [Html.Attributes.id "username"] []
-    ]
+    Html.div []
+        [ Html.label
+            [ Html.Attributes.for "username"
+            ]
+            [ Html.text "Username"
+            ]
+        , Html.textarea [ Html.Attributes.id "username" ] []
+        ]
+
 
 viewBody : Model -> Html Msg
 viewBody model =
@@ -370,17 +371,18 @@ all =
         [ test "check username that is available" <|
             \() ->
                 start
-                |> ProgramTest.fillIn "username" "Username" "dillonkearns1234"
-                |> ProgramTest.expectViewHas [text "Available!"]
---                    |> ProgramTest.simulateHttpOk
---                        "GET"
---                        "http://localhost:8003/lighting_service/v1/devices"
---                        """[{"id":"K001", "name":"Kitchen", "dimmable":false, "value":0}]"""
---                    |> ProgramTest.clickButton "Turn on"
---                    |> ProgramTest.expectHttpRequest
---                        "POST"
---                        "http://localhost:8003/lighting_service/v1/devices/K001"
---                        (.body >> Expect.equal """{"value":1}""")
+                    |> ProgramTest.fillIn "username" "Username" "dillonkearns1234"
+                    |> ProgramTest.expectViewHas [ text "Available!" ]
+
+        --                    |> ProgramTest.simulateHttpOk
+        --                        "GET"
+        --                        "http://localhost:8003/lighting_service/v1/devices"
+        --                        """[{"id":"K001", "name":"Kitchen", "dimmable":false, "value":0}]"""
+        --                    |> ProgramTest.clickButton "Turn on"
+        --                    |> ProgramTest.expectHttpRequest
+        --                        "POST"
+        --                        "http://localhost:8003/lighting_service/v1/devices/K001"
+        --                        (.body >> Expect.equal """{"value":1}""")
         ]
 
 
@@ -410,4 +412,3 @@ main =
             Test.Runner.Html.defaultConfig (Random.initialSeed 0)
     in
     Test.Runner.Html.viewResults config all
-
