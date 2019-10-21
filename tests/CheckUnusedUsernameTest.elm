@@ -247,10 +247,20 @@ update msg model =
 view model =
     { title = "Lighting control"
     , body = [
+    usernameInput,
     Html.text "Available!"
      ]
     }
 
+usernameInput =
+    Html.div [] [
+    Html.label [
+    Html.Attributes.for "username"
+    ] [
+   Html.text "Username"
+    ]
+    , Html.textarea [Html.Attributes.id "username"] []
+    ]
 
 viewBody : Model -> Html Msg
 viewBody model =
@@ -360,6 +370,7 @@ all =
         [ test "check username that is available" <|
             \() ->
                 start
+                |> ProgramTest.fillIn "username" "Username" "dillonkearns1234"
                 |> ProgramTest.expectViewHas [text "Available!"]
 --                    |> ProgramTest.simulateHttpOk
 --                        "GET"
