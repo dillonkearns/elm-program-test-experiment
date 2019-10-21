@@ -18,10 +18,6 @@ import Test.Html.Selector exposing (class, text)
 import Test.Runner.Html
 
 
-apiBase =
-    "http://localhost:8003/lighting_service/v1"
-
-
 type WebData a
     = Loading
     | Loaded a
