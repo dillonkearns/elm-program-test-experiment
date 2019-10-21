@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (Effect(..), Model, Msg, checkUsernameDecoder, init, main, update, view)
 
 import Browser
 import Dict exposing (Dict)
@@ -8,22 +8,6 @@ import Html.Events exposing (onClick)
 import Http
 import Json.Decode
 import Json.Encode
-
-
-main : Program Flags Model Msg
-main =
-    Browser.document
-        { init =
-            \flags ->
-                init flags
-                    |> Tuple.mapSecond perform
-        , update =
-            \msg model ->
-                update msg model
-                    |> Tuple.mapSecond perform
-        , subscriptions = subscriptions
-        , view = view
-        }
 
 
 type WebData a
@@ -48,7 +32,7 @@ mapWebData f data =
 type alias Model =
     { lights : WebData (List Light)
     , pending : Dict String PostResult
-    , usernameAvailable : WebData Bool
+    , usernameAvailable : Maybe Bool
     }
 
 
@@ -61,7 +45,7 @@ initialModel : Model
 initialModel =
     { lights = Loading
     , pending = Dict.empty
-    , usernameAvailable = Loading
+    , usernameAvailable = Nothing
     }
 
 
@@ -86,8 +70,8 @@ type alias Flags =
     ()
 
 
-main_ : Program Flags Model Msg
-main_ =
+main : Program Flags Model Msg
+main =
     Browser.document
         { init =
             \flags ->
@@ -148,7 +132,7 @@ perform effect =
 
         CheckUsernameAvailable username onResult ->
             Http.get
-                { url = "http://localhost:8003/username_available/dillonkearns1234"
+                { url = "/api/username_available/dillonkearns1234"
                 , expect =
                     Http.expectJson onResult (checkUsernameDecoder username)
                 }
@@ -158,32 +142,6 @@ checkUsernameDecoder username =
     Json.Decode.map
         (\bool -> ( username, bool ))
         Json.Decode.bool
-
-
-lightDecoder : Json.Decode.Decoder Light
-lightDecoder =
-    let
-        stateDecoder =
-            Json.Decode.map2 toState
-                (Json.Decode.field "dimmable" Json.Decode.bool)
-                (Json.Decode.field "value" Json.Decode.float)
-
-        toState isDimmable value =
-            case isDimmable of
-                True ->
-                    Dimmable value
-
-                False ->
-                    if value <= 0.0 then
-                        OnOff False
-
-                    else
-                        OnOff True
-    in
-    Json.Decode.map3 Light
-        (Json.Decode.field "id" Json.Decode.string)
-        (Json.Decode.field "name" Json.Decode.string)
-        stateDecoder
 
 
 update : Msg -> Model -> ( Model, Effect )
@@ -197,10 +155,10 @@ update msg model =
         GotUsernameAvailability result ->
             case result of
                 Ok ( username, usernameAvailable ) ->
-                    ( { model | usernameAvailable = Loaded usernameAvailable }, NoEffect )
+                    ( { model | usernameAvailable = Just usernameAvailable }, NoEffect )
 
                 Err error ->
-                    ( { model | usernameAvailable = Error error }, NoEffect )
+                    ( model, NoEffect )
 
 
 view model =
@@ -214,17 +172,14 @@ view model =
 
 viewHelper model =
     case model.usernameAvailable of
-        Loaded True ->
+        Just True ->
             Html.text "Available!"
 
-        Loaded False ->
+        Just False ->
             Html.text "Not available!"
 
-        Loading ->
-            Html.text "Please enter a username"
-
-        Error error ->
-            Debug.todo <| Debug.toString error
+        Nothing ->
+            Html.text ""
 
 
 usernameInput =
