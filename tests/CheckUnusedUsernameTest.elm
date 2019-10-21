@@ -190,7 +190,11 @@ usernameInput =
             ]
             [ Html.text "Username"
             ]
-        , Html.textarea [ Html.Attributes.id "username" ] []
+        , Html.textarea
+            [ Html.Attributes.id "username"
+            , Html.Events.onInput OnUsernameInput
+            ]
+            []
         ]
 
 
