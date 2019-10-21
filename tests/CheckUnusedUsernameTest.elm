@@ -44,6 +44,7 @@ mapWebData f data =
 type alias Model =
     { lights : WebData (List Light)
     , pending : Dict String PostResult
+    , usernameAvailable : Maybe Bool
     }
 
 
@@ -56,11 +57,13 @@ initialModel : Model
 initialModel =
     { lights = Loading
     , pending = Dict.empty
+    , usernameAvailable = Nothing
     }
 
 
 type Msg
     = OnUsernameInput String
+    | GotUsernameAvailability (Result Http.Error ( String, Bool ))
 
 
 type alias Light =
@@ -106,6 +109,7 @@ subscriptions _ =
 
 type Effect
     = NoEffect
+    | CheckUsernameAvailable String (Result Http.Error ( String, Bool ) -> Msg)
     | GetDeviceList
         { url : String
         , decoder : Json.Decode.Decoder (List Light)
@@ -137,6 +141,19 @@ perform effect =
                 , body = Http.jsonBody body
                 , expect = Http.expectJson onResult decoder
                 }
+
+        CheckUsernameAvailable username onResult ->
+            Http.get
+                { url = "http://localhost:8003/username_available/dillonkearns1234"
+                , expect =
+                    Http.expectJson onResult (checkUsernameDecoder username)
+                }
+
+
+checkUsernameDecoder username =
+    Json.Decode.map
+        (\bool -> ( username, bool ))
+        Json.Decode.bool
 
 
 lightDecoder : Json.Decode.Decoder Light
@@ -170,17 +187,37 @@ update msg model =
     case msg of
         OnUsernameInput newInput ->
             ( model
-            , NoEffect
+            , CheckUsernameAvailable newInput GotUsernameAvailability
             )
+
+        GotUsernameAvailability result ->
+            case result of
+                Ok ( username, usernameAvailable ) ->
+                    ( { model | usernameAvailable = Just usernameAvailable }, NoEffect )
+
+                Err error ->
+                    ( model, NoEffect )
 
 
 view model =
     { title = "Lighting control"
     , body =
         [ usernameInput
-        , Html.text "Available!"
+        , viewHelper model
         ]
     }
+
+
+viewHelper model =
+    case model.usernameAvailable of
+        Just True ->
+            Html.text "Available!"
+
+        Just False ->
+            Html.text "Not available!"
+
+        Nothing ->
+            Html.text ""
 
 
 usernameInput =
@@ -216,17 +253,12 @@ all =
             \() ->
                 start
                     |> ProgramTest.fillIn "username" "Username" "dillonkearns1234"
+                    |> ProgramTest.ensureViewHasNot [ text "Available!" ]
+                    |> ProgramTest.simulateHttpOk
+                        "GET"
+                        "http://localhost:8003/username_available/dillonkearns1234"
+                        "true"
                     |> ProgramTest.expectViewHas [ text "Available!" ]
-
-        --                    |> ProgramTest.simulateHttpOk
-        --                        "GET"
-        --                        "http://localhost:8003/lighting_service/v1/devices"
-        --                        """[{"id":"K001", "name":"Kitchen", "dimmable":false, "value":0}]"""
-        --                    |> ProgramTest.clickButton "Turn on"
-        --                    |> ProgramTest.expectHttpRequest
-        --                        "POST"
-        --                        "http://localhost:8003/lighting_service/v1/devices/K001"
-        --                        (.body >> Expect.equal """{"value":1}""")
         ]
 
 
@@ -247,6 +279,13 @@ simulateEffects effect =
                 { url = url
                 , body = SimulatedEffect.Http.jsonBody body
                 , expect = SimulatedEffect.Http.expectJson onResult decoder
+                }
+
+        CheckUsernameAvailable username onResult ->
+            SimulatedEffect.Http.get
+                { url = "http://localhost:8003/username_available/dillonkearns1234"
+                , expect =
+                    SimulatedEffect.Http.expectJson onResult (checkUsernameDecoder username)
                 }
 
 
