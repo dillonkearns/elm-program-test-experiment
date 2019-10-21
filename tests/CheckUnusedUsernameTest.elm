@@ -60,9 +60,7 @@ initialModel =
 
 
 type Msg
-    = DeviceListLoaded (Result Http.Error (List Light))
-    | Set String LightState
-    | LightStateChanged String (Result Http.Error Light)
+    = OnUsernameInput String
 
 
 type alias Light =
@@ -99,7 +97,7 @@ main_ =
 
 init : Flags -> ( Model, Effect )
 init () =
-    ( initialModel, loadDeviceList )
+    ( initialModel, NoEffect )
 
 
 subscriptions _ =
@@ -141,39 +139,6 @@ perform effect =
                 }
 
 
-loadDeviceList : Effect
-loadDeviceList =
-    -- TODO: add auth token
-    GetDeviceList
-        { url = apiBase ++ "/devices"
-        , decoder = Json.Decode.list lightDecoder
-        , onResult = DeviceListLoaded
-        }
-
-
-changeLight : String -> LightState -> Effect
-changeLight id newState =
-    ChangeLight
-        { url = apiBase ++ "/devices/" ++ id
-        , body =
-            Json.Encode.object
-                [ ( "value"
-                  , case newState of
-                        OnOff True ->
-                            Json.Encode.float 1.0
-
-                        OnOff False ->
-                            Json.Encode.float 0.0
-
-                        Dimmable value ->
-                            Json.Encode.float value
-                  )
-                ]
-        , decoder = lightDecoder
-        , onResult = LightStateChanged id
-        }
-
-
 lightDecoder : Json.Decode.Decoder Light
 lightDecoder =
     let
@@ -203,42 +168,8 @@ lightDecoder =
 update : Msg -> Model -> ( Model, Effect )
 update msg model =
     case msg of
-        DeviceListLoaded (Err err) ->
-            ( { model | lights = Error err }
-            , NoEffect
-            )
-
-        DeviceListLoaded (Ok lights) ->
-            ( { model | lights = Loaded lights }
-            , NoEffect
-            )
-
-        Set id newState ->
-            ( { model | pending = Dict.insert id Waiting model.pending }
-            , changeLight id newState
-            )
-
-        LightStateChanged id (Err err) ->
-            ( { model | pending = Dict.insert id (Failed err) model.pending }
-            , NoEffect
-            )
-
-        LightStateChanged id (Ok light) ->
-            let
-                updateLight l =
-                    if l.id == id then
-                        light
-
-                    else
-                        l
-            in
-            ( { model
-                | lights =
-                    mapWebData
-                        (List.map updateLight)
-                        model.lights
-                , pending = Dict.remove light.id model.pending
-              }
+        OnUsernameInput newInput ->
+            ( model
             , NoEffect
             )
 
@@ -260,97 +191,6 @@ usernameInput =
             [ Html.text "Username"
             ]
         , Html.textarea [ Html.Attributes.id "username" ] []
-        ]
-
-
-viewBody : Model -> Html Msg
-viewBody model =
-    case model.lights of
-        Loading ->
-            Html.text "Loading..."
-
-        Loaded lights ->
-            Html.ul []
-                (List.map (viewLightControl model.pending) lights)
-
-        Error err ->
-            Html.text ("Something went wrong: " ++ Debug.toString err)
-
-
-viewLightControl : Dict String PostResult -> Light -> Html Msg
-viewLightControl pending light =
-    Html.li []
-        [ viewBulb (stateToValue light.state)
-        , Html.text " "
-        , Html.text light.name
-        , Html.text " "
-        , case ( Dict.get light.id pending, light.state ) of
-            ( Just Waiting, _ ) ->
-                Html.text "..."
-
-            ( Just (Failed err), _ ) ->
-                Html.text ("Failed: " ++ Debug.toString err)
-
-            ( Nothing, OnOff True ) ->
-                Html.button [ onClick (Set light.id (OnOff False)) ] [ Html.text "Turn off" ]
-
-            ( Nothing, OnOff False ) ->
-                Html.button [ onClick (Set light.id (OnOff True)) ] [ Html.text "Turn on" ]
-
-            ( Nothing, Dimmable value ) ->
-                Html.span []
-                    [ if value <= 0.0 then
-                        Html.text "Off"
-
-                      else if value >= 1.0 then
-                        Html.text "On"
-
-                      else
-                        Html.text ("Dim (" ++ String.fromFloat value ++ ")")
-                    , Html.text " "
-                    , if value > 0.0 then
-                        Html.button [ onClick (Set light.id (Dimmable 0.0)) ] [ Html.text "Turn off" ]
-
-                      else
-                        Html.text ""
-                    , if value <= 1.0 then
-                        Html.button [ onClick (Set light.id (Dimmable (value + 0.1))) ] [ Html.text "Turn up" ]
-
-                      else
-                        Html.text ""
-                    , if value <= 0.5 then
-                        Html.button [ onClick (Set light.id (Dimmable 1.0)) ] [ Html.text "Turn on" ]
-
-                      else
-                        Html.text ""
-                    ]
-        ]
-
-
-stateToValue : LightState -> Float
-stateToValue state =
-    case state of
-        OnOff True ->
-            1.0
-
-        OnOff False ->
-            0.0
-
-        Dimmable v ->
-            v
-
-
-viewBulb : Float -> Html msg
-viewBulb value =
-    Html.span
-        [ style "background-color" "#333"
-        , style "display" "inline-block"
-        ]
-        [ Html.span
-            [ style "opacity" (String.fromFloat value)
-            ]
-            [ Html.text "💡"
-            ]
         ]
 
 
